@@ -1,66 +1,70 @@
-import numpy as np, matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from matplotlib.colors import LogNorm
+from math import atan2, cos, sin, pow, sqrt, pi, tan
+import matplotlib.pyplot as plt
+import numpy as np
 
-a = 0.055
-d = 7*a
-b = 6.0
-lam = 550
-L = 1.20
-pointsa =10
-pointsb = 401
-h = 20*a
-c = b/7
-pointsh = int(h/a*pointsa)
-pointsc = int(pointsb*c/b)
+LongitudOnda = 750*(10**-9)  # Rango rojo
+DistanciaPantalla = 10 # metros
+Angulo = np.pi/6 # radiane s
+Puntos= 50  # Cantidad de puntos en la pantalla
+PosicionesRendija=[10,8,6,4,2,0,-2,-4,-6,-8,-10] # 3 rendijas
 
-pi = np.pi
-k = 2*pi/lam*10**9
+def suma_dos_senos(amplitudA,amplitudB,faseA,faseB):
+    amplitud_r = sqrt( pow((amplitudA*cos(faseA) + amplitudB*sin(faseB)),2) + pow((amplitudA*sin(faseA) + amplitudB*cos(faseB)),2)  )
+    Fase = (pi/2) - atan2((amplitudA*cos(faseA) + amplitudB*sin(faseB)),(amplitudA*sin(faseA) + amplitudB*cos(faseB)))
+    return (amplitud_r, Fase)
 
-def r(x,y,xp,yp):
-  r = np.sqrt((x*10**-2-xp*10**-3)**2+(y*10**-2-yp*10**-3)**2+L**2)
-  return r
+#E0 = 1 para simplificar el problema
 
-def fi(x,y,xp,yp):
-  return k*r(x,y,xp,yp)
+def patron_de_intensidad(Lambda,distancia,angulo,numero,lista):
+    amplitudes = []
+    yps = []
+    angulos  = np.linspace(-angulo,angulo,numero)
+    razon = (2*angulo)/(numero-1)
+    m = 0;
+    for j in range(0,numero):
+        Yp = distancia*tan(angulos[m])
+        yps.append(Yp)
+        k = (2*pi)/Lambda
+        r1 = sqrt(pow(distancia,2)+pow((Yp-lista[0]),2))
+        fase1 = k*r1
+        AMPLITUD_TOTAL = 1/r1
+        FASE_TOTAL = fase1
+        for i in range(1,len(lista)):
+            r2 = sqrt(pow(distancia,2)+pow((Yp-lista[i]),2))
+            fase2 = k*r2
+            amplitud2 = 1/r2
+            (A,f) = suma_dos_senos(AMPLITUD_TOTAL,amplitud2,FASE_TOTAL,fase2)
+            AMPLITUD_TOTAL = A
+            FASE_TOTAL = f
+        amplitudes.append(pow(AMPLITUD_TOTAL,2))
+        m +=1
 
-x = np.linspace(-b/2,b/2,pointsb)
-y = np.linspace(-c/2,c/2,pointsc)
-X,Y = np.meshgrid(x,y)
+    return amplitudes,yps
 
-xp1 = np.linspace(-d/2-a/2,-d/2+a/2,pointsa)
-xp2 = np.linspace(d/2-a/2,d/2+a/2,pointsa)
+amplitudes2,YPS = patron_de_intensidad(LongitudOnda,DistanciaPantalla,Angulo,Puntos,PosicionesRendija)
 
-xp = np.concatenate((xp1,xp2))
-yp = np.linspace(-h/2,h/2,pointsh)
-sgridx,sgridy = np.meshgrid(xp,yp)
-sgridx = sgridx.flatten()
-sgridy = sgridy.flatten()
+print(amplitudes2)
+print(YPS)
 
-def intensity(x,y):
-  Ex = np.sum(np.cos(fi(x,y,sgridx,sgridy)))
-  Ey = np.sum(np.sin(fi(x,y,sgridx,sgridy)))
-  return Ex**2 +Ey**2
+matriz = []
+t = 0
+for i in range(0,len(amplitudes2)):
+    temporal = []
+    for j in range(0,200):
+        temporal.append(amplitudes2[t])
+    matriz.append(temporal)
+    t+=1
 
 
-intensities = np.zeros((pointsc,pointsb))
-for i in range(pointsc):
-  for j in range(pointsb):
-    intensities[i,j] = intensity(X[i,j],Y[i,j])
+plt.plot(YPS, amplitudes2)
 
 
-x_pos = np.array([0,pointsb-1,(pointsb-1)/2])
-xlabels = np.array(["0 cm", "{:} cm".format(b)])
-plt.xticks(x_pos,xlabels,color='black',rotation=-90, \
-fontsize='12',horizontalalignment='center')
+pixel_plot = plt.figure()
 
-y_pos = np.array([0,pointsc-1])
-ylabels = np.array(["{:.2f} cm".format(c),"0 cm"])
-plt.yticks(y_pos,ylabels,color='black',rotation=0, \
-fontsize='12',horizontalalignment='right')
 
-ax=plt.gca()
-labels = [item.get_text() for item in ax.get_xticklabels()]
-plt.xlabel("Double Slit Interference Pattern", fontsize='14', fontweight='bold')
+plt.title("pixel_plot")
+pixel_plot = plt.imshow(
+    matriz,extent=[0, 200, 0, 800], cmap='binary', interpolation='nearest')
 
-plt.imshow(intensities,cmap=cm.gray,norm=LogNorm())
+plt.show()
+
